@@ -1,0 +1,27 @@
+{
+  "name": "gym-app-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Gym Management API — Node.js + Express + MySQL",
+  "scripts": {
+    "start": "node --env-file=.env src/index.js",
+    "dev": "node --env-file=.env --watch src/index.js",
+    "db:init": "node --env-file=.env scripts/db-init.js",
+    "db:seed": "node --env-file=.env scripts/seed.js",
+    "create-owner": "node --env-file=.env scripts/create-owner.js",
+    "db:start": "\"C:\\Program Files\\MySQL\\MySQL Server 8.4\\bin\\mysqld.exe\" --no-defaults --datadir=C:\\Users\\TICKMARKS\\gym-app-mysql --port=3307 --mysqlx=OFF --bind-address=127.0.0.1 --console",
+    "smoke": "node scripts/smoke-test.mjs",
+    "test": "node --env-file-if-exists=.env --test test/"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "express-rate-limit": "^7.4.1",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.11.5",
+    "zod": "^3.23.8"
+  }
+}
