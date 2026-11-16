@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Gym management: Node/Express + MySQL API that also serves the React web app",
+  "main": "server/src/index.js",
   "engines": {
     "node": ">=20.12"
   },
