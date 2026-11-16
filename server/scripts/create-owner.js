@@ -2,9 +2,8 @@
 // Usage:
 //   npm run create-owner -- --gym "Iron Temple" --name "Ravi Kumar" --email ravi@example.com --password "S3cret!pass" [--phone 9876543210]
 import { parseArgs } from 'node:util';
-import bcrypt from 'bcryptjs';
-import { pool, query, transaction } from '../src/db.js';
-import { newQrToken } from '../src/routes/gym.js';
+import { pool } from '../src/db.js';
+import { createGymWithOwner } from '../src/setup.js';
 
 const { values } = parseArgs({
   options: {
@@ -27,31 +26,8 @@ if (values.password.length < 8) {
   process.exit(1);
 }
 
-const email = values.email.trim().toLowerCase();
-
 try {
-  const { gymId, userId } = await transaction(async (conn) => {
-    const [taken] = await query(
-      'SELECT (SELECT COUNT(*) FROM users WHERE email = :email) + (SELECT COUNT(*) FROM members WHERE email = :email) AS n',
-      { email },
-      conn,
-    );
-    if (taken.n) throw new Error(`Email ${email} is already in use`);
-    const gym = await query('INSERT INTO gyms (name, qr_token) VALUES (:name, :token)', { name: values.gym, token: newQrToken() }, conn);
-    const user = await query(
-      `INSERT INTO users (gym_id, role, name, email, phone, password_hash)
-       VALUES (:gymId, 'owner', :name, :email, :phone, :hash)`,
-      {
-        gymId: gym.insertId,
-        name: values.name,
-        email,
-        phone: values.phone ?? null,
-        hash: await bcrypt.hash(values.password, 10),
-      },
-      conn,
-    );
-    return { gymId: gym.insertId, userId: user.insertId };
-  });
+  const { gymId, userId, email } = await createGymWithOwner(values);
   console.log(`Created gym #${gymId} "${values.gym}" with owner #${userId} <${email}>.`);
   console.log('Next: log in as the owner and set the gym location under Gym settings.');
 } catch (err) {

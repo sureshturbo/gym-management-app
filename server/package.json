@@ -5,8 +5,8 @@
   "type": "module",
   "description": "Gym Management API — Node.js + Express + MySQL",
   "scripts": {
-    "start": "node --env-file=.env src/index.js",
-    "dev": "node --env-file=.env --watch src/index.js",
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
     "db:init": "node --env-file=.env scripts/db-init.js",
     "db:seed": "node --env-file=.env scripts/seed.js",
     "create-owner": "node --env-file=.env scripts/create-owner.js",

@@ -106,9 +106,34 @@ All endpoints are under `/api`, JSON, `Authorization: Bearer <token>`.
 | Dashboard | `GET /dashboard/owner` · `GET /dashboard/member` | owner · member |
 | Reports | `GET /reports/attendance?from&to`, `GET /reports/payments?from&to` | owner |
 
-## 6. Production notes
+## 6. Deploying (Hostinger Node.js app, or any Node host)
 
-- Serve `client/dist` (from `npm run build`) and the API behind one HTTPS domain (e.g. Nginx), so `/api` stays same-origin.
+The API also serves the built React app, so **one Node app runs the whole site**
+(`/` and `/login` → React, `/api/...` → API). Deploy the repo **root**:
+
+| Setting | Value |
+|---|---|
+| Install | `npm install` (also installs `server/` and `client/`) |
+| Build | `npm run build` (builds `client/dist`) |
+| Start / entry | `npm start` (= `node server/src/index.js`) |
+| Node version | 20.12 or newer (22 recommended) |
+
+Environment variables (control panel, or a `server/.env` file on the host):
+
+| Variable | Value |
+|---|---|
+| `DB_HOST` `DB_PORT` `DB_USER` `DB_PASSWORD` `DB_NAME` | the MySQL database created in hPanel (host is usually `localhost`) |
+| `JWT_SECRET` | long random string |
+| `CORS_ORIGIN` | the site URL, e.g. `https://your-site.hostingersite.com` |
+| `OWNER_EMAIL` `OWNER_PASSWORD` `OWNER_NAME` `GYM_NAME` | first owner login; created on first start only if there's no owner yet |
+
+On start the app creates any missing tables automatically, so there's no need to run `db:init` on the host.
+If only the static `client/dist` files are uploaded (plain website hosting), pages load but
+login fails because `/api` isn't running. Use a Node.js app instead.
+
+### Production notes
+
+- `/api` and the site share one HTTPS domain, so no CORS setup is needed for the browser.
 - Use a dedicated MySQL user with rights only on `gym_app`, not `root`.
 - Set a fresh `JWT_SECRET` and `CORS_ORIGIN` for the real domain.
 - Password reset is owner-assisted in v1 (no email service); members change their password under Profile.

@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -13,6 +16,24 @@ import { attendanceRouter } from './routes/attendance.js';
 import { followupsRouter } from './routes/followups.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { reportsRouter } from './routes/reports.js';
+
+const webDist = fileURLToPath(new URL('../../client/dist', import.meta.url));
+
+/**
+ * In production the built React app (client/dist) is served from the same server,
+ * so the site and /api share one domain. Any non-API GET that isn't a file gets
+ * index.html, letting React Router handle /login, /owner/members, etc.
+ */
+function serveWebApp(app) {
+  const indexHtml = path.join(webDist, 'index.html');
+  if (!fs.existsSync(indexHtml)) return; // dev: Vite serves the client
+  app.use('/assets', express.static(path.join(webDist, 'assets'), { immutable: true, maxAge: '1y' }));
+  app.use(express.static(webDist, { index: false }));
+  app.use((req, res, next) => {
+    if ((req.method !== 'GET' && req.method !== 'HEAD') || req.path === '/api' || req.path.startsWith('/api/')) return next();
+    res.set('Cache-Control', 'no-cache').sendFile(indexHtml);
+  });
+}
 
 export function createApp() {
   const app = express();
@@ -32,6 +53,8 @@ export function createApp() {
   app.use('/api/followups', followupsRouter);
   app.use('/api/dashboard', dashboardRouter);
   app.use('/api/reports', reportsRouter);
+
+  serveWebApp(app);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
