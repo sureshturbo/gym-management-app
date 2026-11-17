@@ -7,6 +7,9 @@ import basicSsl from '@vitejs/plugin-basic-ssl';
 //                         (browsers only allow camera/location on HTTPS or localhost).
 export default defineConfig(({ mode }) => ({
   plugins: [react(), ...(mode === 'https' ? [basicSsl()] : [])],
+  // The production build goes into server/public, so the server folder alone is a complete,
+  // deployable app (Hostinger deploys one folder of the repo). Commit server/public after building.
+  build: { outDir: '../server/public', emptyOutDir: true },
   server: {
     host: mode === 'https' ? true : 'localhost',
     port: 5180,

@@ -1,0 +1,12 @@
+# Only used when the built site is uploaded as a plain static site (Apache/LiteSpeed).
+# Sends app routes such as /login or /owner/members to index.html so React Router can handle them.
+# The API (/api) must still run as a Node.js app; see README "Deploying".
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_URI} !^/api(/|$)
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>

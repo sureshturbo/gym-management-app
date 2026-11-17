@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=20.12"
+  },
   "description": "Gym Management API — Node.js + Express + MySQL",
   "scripts": {
     "start": "node src/index.js",

@@ -1,5 +1,5 @@
 // First-run setup for hosted deployments, where there may be no terminal:
-//  1. create any missing tables from database/schema.sql (CREATE TABLE IF NOT EXISTS),
+//  1. create any missing tables from server/db/schema.sql (CREATE TABLE IF NOT EXISTS),
 //  2. if OWNER_EMAIL + OWNER_PASSWORD are set and no owner exists yet, create the gym and its owner.
 import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -9,7 +9,7 @@ import { config } from './config.js';
 import { query, transaction } from './db.js';
 import { newQrToken } from './routes/gym.js';
 
-const schemaPath = fileURLToPath(new URL('../../database/schema.sql', import.meta.url));
+const schemaPath = fileURLToPath(new URL('../db/schema.sql', import.meta.url));
 
 /** Create missing tables in the configured database (hosted DBs already exist, so skip CREATE DATABASE / USE). */
 export async function ensureSchema() {

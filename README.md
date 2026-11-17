@@ -4,7 +4,7 @@ Multi-gym management for gym owners and members: QR + GPS attendance, members, m
 
 | Part | Tech | Folder |
 |---|---|---|
-| Database | MySQL 8 (raw SQL) | `database/schema.sql` |
+| Database | MySQL 8 (raw SQL) | `server/db/schema.sql` |
 | API | Node.js 20+ · Express 5 · mysql2 · JWT · zod | `server/` |
 | Web app (owner + member, installable PWA) | React 18 · Vite · React Router | `client/` |
 
@@ -109,14 +109,23 @@ All endpoints are under `/api`, JSON, `Authorization: Bearer <token>`.
 ## 6. Deploying (Hostinger Node.js app, or any Node host)
 
 The API also serves the built React app, so **one Node app runs the whole site**
-(`/` and `/login` → React, `/api/...` → API). Deploy the repo **root**:
+(`/` and `/login` → React, `/api/...` → API). The **`server/` folder is self-contained**:
+it holds the built site (`server/public`) and the schema (`server/db/schema.sql`).
+
+Hostinger → Web App → Deployments → Redeploy (Settings and redeploy):
 
 | Setting | Value |
 |---|---|
-| Install | `npm install` (also installs `server/` and `client/`) |
-| Build | `npm run build` (builds `client/dist`) |
-| Start / entry | `npm start` (= `node server/src/index.js`) |
-| Node version | 20.12 or newer (22 recommended) |
+| Framework preset | **Express** |
+| Root directory | **`server`** |
+| Entry file | **`src/index.js`** |
+| Node version | 22.x |
+
+**After changing the UI, rebuild and commit the site**, because the host doesn't build `client/`:
+```bash
+cd client && npm run build      # writes ../server/public
+git add server/public && git commit -m "Rebuild web app" && git push
+```
 
 Environment variables (control panel, or a `server/.env` file on the host):
 
@@ -128,7 +137,7 @@ Environment variables (control panel, or a `server/.env` file on the host):
 | `OWNER_EMAIL` `OWNER_PASSWORD` `OWNER_NAME` `GYM_NAME` | first owner login; created on first start only if there's no owner yet |
 
 On start the app creates any missing tables automatically, so there's no need to run `db:init` on the host.
-If only the static `client/dist` files are uploaded (plain website hosting), pages load but
+If only the static site files are uploaded (plain website hosting), pages load but
 login fails because `/api` isn't running. Use a Node.js app instead.
 
 ### Production notes

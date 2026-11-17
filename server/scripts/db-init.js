@@ -1,4 +1,4 @@
-// Creates the database and tables from database/schema.sql.
+// Creates the database and tables from server/db/schema.sql.
 // Usage: npm run db:init            (safe to re-run; uses CREATE ... IF NOT EXISTS)
 //        npm run db:init -- --reset (DROPS the database first — deletes all data)
 import fs from 'node:fs/promises';
@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import mysql from 'mysql2/promise';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const schemaPath = path.resolve(here, '../../database/schema.sql');
+const schemaPath = path.resolve(here, '../db/schema.sql');
 const dbName = process.env.DB_NAME ?? 'gym_app';
 const reset = process.argv.includes('--reset');
 

@@ -17,10 +17,10 @@ import { followupsRouter } from './routes/followups.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { reportsRouter } from './routes/reports.js';
 
-const webDist = fileURLToPath(new URL('../../client/dist', import.meta.url));
+const webDist = fileURLToPath(new URL('../public', import.meta.url));
 
 /**
- * In production the built React app (client/dist) is served from the same server,
+ * In production the built React app (server/public, from `npm run build` in client/) is served from the same server,
  * so the site and /api share one domain. Any non-API GET that isn't a file gets
  * index.html, letting React Router handle /login, /owner/members, etc.
  */
