@@ -50,9 +50,9 @@ export async function createGymWithOwner({ gym, name, email, password, phone = n
 export async function ensureFirstOwner() {
   const { OWNER_EMAIL, OWNER_PASSWORD, OWNER_NAME, GYM_NAME } = process.env;
   if (!OWNER_EMAIL || !OWNER_PASSWORD) return;
-  const placeholder = [OWNER_EMAIL, OWNER_PASSWORD, OWNER_NAME, GYM_NAME].some((v) => v && /[<>]/.test(v));
-  if (placeholder || !OWNER_EMAIL.includes('@')) {
-    console.error('OWNER_* settings still contain placeholders like <your email>; first owner not created.');
+  const isPlaceholder = (v) => !v || /[<>]/.test(v);
+  if (isPlaceholder(OWNER_EMAIL) || isPlaceholder(OWNER_PASSWORD) || !OWNER_EMAIL.includes('@')) {
+    console.error('OWNER_EMAIL / OWNER_PASSWORD still contain placeholders like <your email>; first owner not created.');
     return;
   }
   const [{ n }] = await query("SELECT COUNT(*) AS n FROM users WHERE role = 'owner'");
@@ -62,8 +62,9 @@ export async function ensureFirstOwner() {
     return;
   }
   const r = await createGymWithOwner({
-    gym: GYM_NAME || 'My Gym',
-    name: OWNER_NAME || 'Owner',
+    // Name placeholders just fall back to defaults; both can be changed later in the app.
+    gym: isPlaceholder(GYM_NAME) ? 'My Gym' : GYM_NAME,
+    name: isPlaceholder(OWNER_NAME) ? 'Owner' : OWNER_NAME,
     email: OWNER_EMAIL,
     password: OWNER_PASSWORD,
   });
