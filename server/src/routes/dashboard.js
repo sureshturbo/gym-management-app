@@ -65,7 +65,7 @@ dashboardRouter.get('/owner', ownerOnly, async (req, res) => {
     ),
     // Expiring soon and not yet renewed
     query(
-      `SELECT ms.member_id, m.full_name, m.phone, m.photo_key, ms.plan_name, ms.expiry_date
+      `SELECT ms.member_id, m.full_name, m.phone, m.gender, m.photo_key, ms.plan_name, ms.expiry_date
          FROM memberships ms JOIN members m ON m.id = ms.member_id
         WHERE ms.gym_id = :gymId AND ms.is_cancelled = 0 AND m.is_active = 1
           AND ms.expiry_date BETWEEN :today AND :soon

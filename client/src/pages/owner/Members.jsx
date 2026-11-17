@@ -22,8 +22,8 @@ export default function Members() {
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
   const [status, setStatus] = useState('');
-  const [gender, setGender] = useState('');
   const [searchParams] = useSearchParams();
+  const [gender, setGender] = useState(searchParams.get('gender') ?? ''); // dashboard links here with ?gender=
   const [batch, setBatch] = useState(searchParams.get('batch') ?? ''); // batch cards link here with ?batch=<id>
   const batches = useApi('/batches').data?.batches ?? [];
   const [adding, setAdding] = useState(false);

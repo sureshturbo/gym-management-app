@@ -7,13 +7,13 @@ import { Avatar, Badge, Card, CountUp, Delta, Empty, ErrorBox, Skeleton, Stat } 
 import {
   AttendanceTrend,
   BatchesToday,
-  GenderSplit,
   GenderTrend,
   MemberMix,
   PeakHours,
   PlanPopularity,
   RevenueBars,
 } from '../../components/charts.jsx';
+import GenderSpotlight from '../../components/GenderSpotlight.jsx';
 
 const greeting = () => {
   const h = new Date().getHours();
@@ -91,6 +91,16 @@ export default function OwnerDashboard() {
         />
       </div>
 
+      <div className="bento stagger">
+        <GenderSpotlight
+          gender={gender}
+          expiring={expiring}
+          dues={dues}
+          attendance={charts.data?.attendance}
+          className="span-12"
+        />
+      </div>
+
       {charts.error && <ErrorBox error={charts.error} onRetry={charts.reload} />}
       {charts.data ? (
         <>
@@ -99,8 +109,8 @@ export default function OwnerDashboard() {
             <MemberMix mix={charts.data.mix} className="span-4" />
           </div>
           <div className="bento stagger">
-            <GenderTrend data={charts.data.attendance} className="span-8" />
-            <GenderSplit gender={gender} className="span-4" />
+            <GenderTrend data={charts.data.attendance} className={batches.length ? 'span-7' : 'span-12'} />
+            {batches.length > 0 && <BatchesToday batches={batches} className="span-5" />}
           </div>
           <div className="bento stagger">
             <RevenueBars data={charts.data.revenue} className="span-7" />
@@ -111,11 +121,6 @@ export default function OwnerDashboard() {
         !charts.error && <Skeleton stats={0} blocks={1} />
       )}
 
-      {batches.length > 0 && (
-        <div className="bento stagger">
-          <BatchesToday batches={batches} className="span-12" />
-        </div>
-      )}
 
       <div className="bento stagger">
         <Card title="Expiring soon" sub="Not yet renewed" className="span-6" actions={<Badge tone="warning">{expiring.length}</Badge>}>
