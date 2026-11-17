@@ -4,29 +4,41 @@ import Icon from './Icon.jsx';
 
 const SIZE = 400; // stored photos are 400×400 JPEGs (~30–60 KB)
 
+const UNREADABLE =
+  'This photo format is not supported by your browser. Choose a JPEG or PNG ' +
+  '(on iPhone: Settings → Camera → Formats → Most Compatible).';
+
+/**
+ * Decode the file. Read it as a data: URL rather than a blob: URL, because the site's
+ * Content-Security-Policy (img-src 'self' data:) blocks blob: images in production.
+ */
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('This file could not be opened'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(UNREADABLE));
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 /** Centre-crop to a square and shrink, so uploads are small whatever the camera produced. */
 async function toSquareJpeg(file) {
-  const url = URL.createObjectURL(file);
-  try {
-    const img = await new Promise((resolve, reject) => {
-      const i = new Image();
-      i.onload = () => resolve(i);
-      i.onerror = () => reject(new Error('This file could not be read as an image'));
-      i.src = url;
-    });
-    const side = Math.min(img.naturalWidth, img.naturalHeight);
-    const out = Math.min(SIZE, side);
-    const canvas = document.createElement('canvas');
-    canvas.width = out;
-    canvas.height = out;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#fff'; // transparent PNGs get a white background
-    ctx.fillRect(0, 0, out, out);
-    ctx.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, out, out);
-    return canvas.toDataURL('image/jpeg', 0.85);
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+  const img = await loadImage(file);
+  const side = Math.min(img.naturalWidth, img.naturalHeight);
+  const out = Math.min(SIZE, side);
+  const canvas = document.createElement('canvas');
+  canvas.width = out;
+  canvas.height = out;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff'; // transparent PNGs get a white background
+  ctx.fillRect(0, 0, out, out);
+  ctx.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, out, out);
+  return canvas.toDataURL('image/jpeg', 0.85);
 }
 
 /**
