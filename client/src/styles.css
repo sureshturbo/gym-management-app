@@ -564,12 +564,13 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--p
 .hbars-wide .hbar-row { grid-template-columns: minmax(90px, 160px) 1fr 52px; }
 
 /* ---------- men & women spotlight ---------- */
-.gs-layout { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; gap: 22px; align-items: start; }
+.gs-layout { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; gap: 22px; align-items: stretch; }
+.gs-left { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 @media (max-width: 900px) { .gs-layout { grid-template-columns: 1fr; } }
-.gs-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.gs-tiles { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .gs-tile {
   --c: var(--series-1);
-  position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   padding: 16px 10px 14px; border-radius: 20px; cursor: pointer; font: inherit; text-align: center;
   border: 2px solid color-mix(in srgb, var(--c) 22%, transparent);
   background: color-mix(in srgb, var(--c) 9%, var(--surface));
@@ -624,3 +625,14 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--p
 .gs-person-text b { font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gs-person-text small { color: var(--muted); font-size: 0.74rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (prefers-reduced-motion: reduce) { .gs-tile.active .gs-figure, .gs-details, .gs-bar i { animation: none; } }
+
+.gs-ratio { padding: 12px 14px; border-radius: 14px; background: var(--surface-2); }
+.gs-ratio-head { display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 700; color: var(--text-2); margin-bottom: 8px; }
+.gs-ratio-head i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; vertical-align: 0; margin: 0 4px; }
+.gs-ratio-head .dot-m, .gs-ratio-bar .m { background: var(--series-1); }
+.gs-ratio-head .dot-f, .gs-ratio-bar .f { background: var(--series-2); }
+.gs-ratio-bar { display: flex; gap: 2px; height: 12px; border-radius: 999px; overflow: hidden; transform-origin: left; animation: grow-x 0.9s var(--ease) both; }
+.gs-ratio-bar span { min-width: 0; }
+.gs-ratio-foot { margin-top: 8px; font-size: 0.78rem; color: var(--muted); font-weight: 600; }
+.gs-ratio-foot b { color: var(--text); }
+@media (max-width: 900px) { .gs-tiles { flex: none; } }

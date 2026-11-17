@@ -42,6 +42,7 @@ export default function GenderSpotlight({ gender, expiring, dues, attendance, cl
       </div>
 
       <div className="gs-layout">
+        <div className="gs-left">
         <div className="gs-tiles" role="tablist" aria-label="Gender">
           {Object.entries(GROUPS).map(([key, g]) => {
             const c = gender[key];
@@ -65,6 +66,8 @@ export default function GenderSpotlight({ gender, expiring, dues, attendance, cl
               </button>
             );
           })}
+        </div>
+        <Ratio gender={gender} />
         </div>
 
         <Details
@@ -184,6 +187,29 @@ function Kpi({ label, value, format, warn }) {
     <div className={`gs-kpi ${warn ? 'warn' : ''}`}>
       <b><CountUp value={value} format={format} /></b>
       <span>{label}</span>
+    </div>
+  );
+}
+
+/** Men vs women share of members, plus today's check-ins, under the two tiles. */
+function Ratio({ gender }) {
+  const m = gender.male.total;
+  const f = gender.female.total;
+  const both = m + f;
+  const pm = both ? Math.round((m / both) * 100) : 50;
+  return (
+    <div className="gs-ratio">
+      <div className="gs-ratio-head">
+        <span><i className="dot-m" /> Men {both ? pm : 0}%</span>
+        <span>Women {both ? 100 - pm : 0}% <i className="dot-f" /></span>
+      </div>
+      <div className="gs-ratio-bar" role="img" aria-label={`Men ${m}, women ${f}`}>
+        <span className="m" style={{ flexGrow: m || (both ? 0 : 1) }} />
+        <span className="f" style={{ flexGrow: f || (both ? 0 : 1) }} />
+      </div>
+      <div className="gs-ratio-foot">
+        Today: <b>{gender.male.today}</b> men · <b>{gender.female.today}</b> women
+      </div>
     </div>
   );
 }
