@@ -50,6 +50,11 @@ export async function createGymWithOwner({ gym, name, email, password, phone = n
 export async function ensureFirstOwner() {
   const { OWNER_EMAIL, OWNER_PASSWORD, OWNER_NAME, GYM_NAME } = process.env;
   if (!OWNER_EMAIL || !OWNER_PASSWORD) return;
+  const placeholder = [OWNER_EMAIL, OWNER_PASSWORD, OWNER_NAME, GYM_NAME].some((v) => v && /[<>]/.test(v));
+  if (placeholder || !OWNER_EMAIL.includes('@')) {
+    console.error('OWNER_* settings still contain placeholders like <your email>; first owner not created.');
+    return;
+  }
   const [{ n }] = await query("SELECT COUNT(*) AS n FROM users WHERE role = 'owner'");
   if (n) return;
   if (OWNER_PASSWORD.length < 8) {
