@@ -34,9 +34,9 @@ async function seed(conn) {
   const q = (sql, params) => query(sql, params, conn);
 
   const gym = await q(
-    `INSERT INTO gyms (name, address, phone, email, latitude, longitude, radius_m, qr_token)
+    `INSERT INTO gyms (name, address, phone, email, latitude, longitude, radius_m, open_time, close_time, closed_days, qr_token)
      VALUES ('Demo Fitness Studio', '12 Anna Salai, Chennai, Tamil Nadu', '9876500000', 'hello@demo.gym',
-             13.0604220, 80.2495830, 150, :token)`,
+             13.0604220, 80.2495830, 150, '05:30', '22:00', 'sun', :token)`,
     { token: newQrToken() },
   );
   const gymId = gym.insertId;
@@ -65,20 +65,34 @@ async function seed(conn) {
     plans[name] = { id: r.insertId, name, unit, value, price };
   }
 
+  const batches = {};
+  for (const [name, start, end, gender, capacity] of [
+    ['Morning', '06:00', '08:00', 'any', 30],
+    ['Ladies', '10:00', '11:30', 'female', 15],
+    ['Evening', '18:00', '20:00', 'any', 30],
+  ]) {
+    const r = await q(
+      `INSERT INTO batches (gym_id, name, start_time, end_time, gender, capacity)
+       VALUES (:gymId, :name, :start, :end, :gender, :capacity)`,
+      { gymId, name, start, end, gender, capacity },
+    );
+    batches[name] = r.insertId;
+  }
+
   const memberHash = await bcrypt.hash(MEMBER_PASSWORD, 10);
 
-  // [name, email, phone, registered, plan, start offset (days from today), paid fraction, visit pattern]
+  // [name, email, phone, registered, plan, start offset (days from today), paid fraction, visit pattern, gender, batch]
   const people = [
-    ['Arjun Mehta', 'arjun@demo.gym', '9840000001', true, 'Quarterly', -20, 1, 'regular'],
-    ['Priya Sharma', 'priya@demo.gym', '9840000002', true, 'Monthly', -26, 0, 'regular'],
-    ['Karthik Raja', 'karthik@demo.gym', '9840000003', false, 'Yearly', -100, 0.5, 'absent'],
-    ['Divya Nair', 'divya@demo.gym', '9840000004', false, 'Monthly', -45, 1, 'none'],
-    ['Rahul Verma', 'rahul@demo.gym', '9840000005', false, 'Half-yearly', -10, 1, 'regular'],
-    ['Sneha Iyer', 'sneha@demo.gym', '9840000006', false, '15-day trial', -12, 1, 'regular'],
-    ['Neha Gupta', 'neha@demo.gym', '9840000007', false, 'Monthly', 0, 0, 'none'],
+    ['Arjun Mehta', 'arjun@demo.gym', '9840000001', true, 'Quarterly', -20, 1, 'regular', 'male', 'Morning'],
+    ['Priya Sharma', 'priya@demo.gym', '9840000002', true, 'Monthly', -26, 0, 'regular', 'female', 'Ladies'],
+    ['Karthik Raja', 'karthik@demo.gym', '9840000003', false, 'Yearly', -100, 0.5, 'absent', 'male', 'Evening'],
+    ['Divya Nair', 'divya@demo.gym', '9840000004', false, 'Monthly', -45, 1, 'none', 'female', 'Evening'],
+    ['Rahul Verma', 'rahul@demo.gym', '9840000005', false, 'Half-yearly', -10, 1, 'regular', 'male', 'Evening'],
+    ['Sneha Iyer', 'sneha@demo.gym', '9840000006', false, '15-day trial', -12, 1, 'regular', 'female', 'Morning'],
+    ['Neha Gupta', 'neha@demo.gym', '9840000007', false, 'Monthly', 0, 0, 'none', 'female', null],
   ];
 
-  for (const [fullName, email, phone, registered, planName, offset, paidFraction, pattern] of people) {
+  for (const [fullName, email, phone, registered, planName, offset, paidFraction, pattern, gender, batch] of people) {
     const start = addDays(today, offset);
     let userId = null;
     if (registered) {
@@ -90,9 +104,9 @@ async function seed(conn) {
       userId = u.insertId;
     }
     const m = await q(
-      `INSERT INTO members (gym_id, user_id, full_name, phone, email, joined_on)
-       VALUES (:gymId, :userId, :fullName, :phone, :email, :joined)`,
-      { gymId, userId, fullName, phone, email, joined: start },
+      `INSERT INTO members (gym_id, user_id, batch_id, full_name, phone, email, gender, joined_on)
+       VALUES (:gymId, :userId, :batchId, :fullName, :phone, :email, :gender, :joined)`,
+      { gymId, userId, batchId: batch ? batches[batch] : null, fullName, phone, email, gender, joined: start },
     );
     const memberId = m.insertId;
 

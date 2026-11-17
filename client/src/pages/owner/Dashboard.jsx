@@ -4,17 +4,26 @@ import { useApi } from '../../hooks.js';
 import { date, money, REASONS } from '../../format.js';
 import Icon from '../../components/Icon.jsx';
 import { Avatar, Badge, Card, CountUp, Delta, Empty, ErrorBox, Skeleton, Stat } from '../../components/ui.jsx';
-import { AttendanceTrend, MemberMix, PeakHours, PlanPopularity, RevenueBars } from '../../components/charts.jsx';
+import {
+  AttendanceTrend,
+  BatchesToday,
+  GenderSplit,
+  GenderTrend,
+  MemberMix,
+  PeakHours,
+  PlanPopularity,
+  RevenueBars,
+} from '../../components/charts.jsx';
 
 const greeting = () => {
   const h = new Date().getHours();
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 };
 
-const MemberRow = ({ id, name, sub, right }) => (
+const MemberRow = ({ id, name, photo, sub, right }) => (
   <li>
     <Link to={`/owner/members/${id}`} className="who" style={{ color: 'inherit', textDecoration: 'none' }}>
-      <Avatar name={name} size={36} />
+      <Avatar name={name} photo={photo} size={36} />
       <div style={{ minWidth: 0 }}>
         <div style={{ fontWeight: 700 }}>{name}</div>
         <div className="muted small">{sub}</div>
@@ -31,7 +40,7 @@ export default function OwnerDashboard() {
 
   if (error && !data) return <ErrorBox error={error} onRetry={reload} />;
   if (!data) return <Skeleton stats={4} blocks={2} />;
-  const { stats, expiring, absent, followupsDue, dues } = data;
+  const { stats, expiring, absent, followupsDue, dues, gender, batches } = data;
 
   return (
     <>
@@ -53,7 +62,9 @@ export default function OwnerDashboard() {
           </div>
           <div className="stat-value"><CountUp value={stats.today_attendance} /></div>
           {/* Today is still in progress, so show yesterday's total rather than a % change */}
-          <div className="stat-foot">Yesterday: {stats.yesterday_attendance} · {stats.active_members} active members</div>
+          <div className="stat-foot">
+            Men {gender.male.today} · Women {gender.female.today} · Yesterday {stats.yesterday_attendance}
+          </div>
         </div>
         <Stat
           label="Active members"
@@ -88,12 +99,22 @@ export default function OwnerDashboard() {
             <MemberMix mix={charts.data.mix} className="span-4" />
           </div>
           <div className="bento stagger">
+            <GenderTrend data={charts.data.attendance} className="span-8" />
+            <GenderSplit gender={gender} className="span-4" />
+          </div>
+          <div className="bento stagger">
             <RevenueBars data={charts.data.revenue} className="span-7" />
             <PeakHours data={charts.data.peakHours} className="span-5" />
           </div>
         </>
       ) : (
         !charts.error && <Skeleton stats={0} blocks={1} />
+      )}
+
+      {batches.length > 0 && (
+        <div className="bento stagger">
+          <BatchesToday batches={batches} className="span-12" />
+        </div>
       )}
 
       <div className="bento stagger">
@@ -105,6 +126,7 @@ export default function OwnerDashboard() {
                   key={`${e.member_id}-${e.expiry_date}`}
                   id={e.member_id}
                   name={e.full_name}
+                  photo={e.photo_key}
                   sub={`${e.plan_name} · ${e.phone}`}
                   right={<Badge tone={e.days_left <= 2 ? 'danger' : 'warning'}>{e.days_left === 0 ? 'Today' : `${e.days_left}d left`}</Badge>}
                 />
@@ -123,6 +145,7 @@ export default function OwnerDashboard() {
                   key={f.id}
                   id={f.member_id}
                   name={f.full_name}
+                  photo={f.photo_key}
                   sub={`${REASONS[f.reason]}${f.remarks ? ` — ${f.remarks}` : ''}`}
                   right={<span className="muted small nowrap">{date(f.followup_date)}</span>}
                 />
@@ -141,6 +164,7 @@ export default function OwnerDashboard() {
                   key={d.membership_id}
                   id={d.member_id}
                   name={d.full_name}
+                  photo={d.photo_key}
                   sub={`${d.plan_name} · since ${date(d.start_date)}`}
                   right={
                     <div className="right">
@@ -166,6 +190,7 @@ export default function OwnerDashboard() {
                   key={a.member_id}
                   id={a.member_id}
                   name={a.full_name}
+                  photo={a.photo_key}
                   sub={a.phone}
                   right={<span className="muted small nowrap">{a.last_visit ? `${a.days_absent} days ago` : 'Never checked in'}</span>}
                 />

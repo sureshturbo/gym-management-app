@@ -14,7 +14,7 @@ const round2 = (n) => Math.round(n * 100) / 100;
 /** Memberships with an unpaid balance. Overdue = still unpaid N days after the start date. */
 export async function listDues(gymId, today, memberId) {
   const rows = await query(
-    `SELECT ms.id AS membership_id, ms.member_id, m.full_name, m.phone, ms.plan_name, ms.start_date,
+    `SELECT ms.id AS membership_id, ms.member_id, m.full_name, m.phone, m.photo_key, ms.plan_name, ms.start_date,
             ms.expiry_date, ms.amount, ${MS_PAID('ms')} AS paid, ${MS_STATUS('ms')} AS status
        FROM memberships ms JOIN members m ON m.id = ms.member_id
       WHERE ms.gym_id = :gymId AND ms.is_cancelled = 0

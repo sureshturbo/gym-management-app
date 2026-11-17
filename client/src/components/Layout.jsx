@@ -18,6 +18,7 @@ const NAV = {
       { to: '/owner/followups', label: 'Follow-ups', icon: 'bell' },
       { section: 'Setup' },
       { to: '/owner/plans', label: 'Plans', icon: 'tag' },
+      { to: '/owner/batches', label: 'Batches & timing', icon: 'clock' },
       { to: '/owner/gym', label: 'Gym & QR', icon: 'qr' },
     ],
   },
@@ -77,7 +78,7 @@ export default function Layout({ role }) {
         </nav>
         <div className="sidebar-foot">
           <NavLink to={nav.profile} aria-label="Profile">
-            <Avatar name={user?.name} size={36} />
+            <Avatar name={user?.name} photo={user?.photoKey} size={36} />
           </NavLink>
           <div className="who">
             {user?.name}
@@ -97,7 +98,7 @@ export default function Layout({ role }) {
             <span className="brand-name">{user?.gymName ?? 'Gym Manager'}</span>
           </div>
           <div className="row gap">
-            <NavLink to={nav.profile} aria-label="Profile"><Avatar name={user?.name} size={32} /></NavLink>
+            <NavLink to={nav.profile} aria-label="Profile"><Avatar name={user?.name} photo={user?.photoKey} size={32} /></NavLink>
             <button type="button" className="icon-btn" onClick={logout} aria-label="Log out"><Icon name="logout" size={18} /></button>
           </div>
         </header>

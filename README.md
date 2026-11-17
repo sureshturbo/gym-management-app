@@ -1,6 +1,6 @@
 # Gym Management Application
 
-Multi-gym management for gym owners and members: QR + GPS attendance, members, membership plans, manual fee collection (cash/UPI), follow-ups, dashboards and reports.
+Multi-gym management for gym owners and members: QR + GPS attendance, members (with profile photos), batches and gym timings, membership plans, manual fee collection (cash/UPI), follow-ups, dashboards (incl. men/women split) and reports.
 
 | Part | Tech | Folder |
 |---|---|---|
@@ -8,7 +8,7 @@ Multi-gym management for gym owners and members: QR + GPS attendance, members, m
 | API | Node.js 20+ · Express 5 · mysql2 · JWT · zod | `server/` |
 | Web app (owner + member, installable PWA) | React 18 · Vite · React Router | `client/` |
 
-Not in v1 (by decision): image uploads, push notifications, online payment gateway.
+Not in v1 (by decision): push notifications, online payment gateway. Profile photos are resized in the browser and stored in MySQL (`photos` table), so they survive redeploys.
 
 ## 0. Daily start (this PC)
 
@@ -96,8 +96,10 @@ All endpoints are under `/api`, JSON, `Authorization: Bearer <token>`.
 | Area | Endpoints | Role |
 |---|---|---|
 | Auth | `POST /auth/login`, `POST /auth/register`, `GET/PATCH /auth/me`, `POST /auth/change-password` | all |
-| Gym | `GET /gym`, `PUT /gym`, `GET /gym/qr`, `POST /gym/qr/rotate` | owner (GET /gym: all) |
-| Members | `GET /members?search&status`, `POST /members`, `GET/PUT /members/:id`, `POST /members/:id/reset-password` | owner |
+| Gym | `GET /gym`, `PUT /gym`, `PUT /gym/hours`, `GET /gym/qr`, `POST /gym/qr/rotate` | owner (GET /gym: all) |
+| Batches | `GET /batches`, `POST /batches`, `PUT /batches/:id`, `DELETE /batches/:id` | owner |
+| Photos | `PUT/DELETE /members/:id/photo` · `PUT/DELETE /auth/me/photo` · `GET /photos/:key` (public, random key) | owner · all · anyone |
+| Members | `GET /members?search&status&gender&batch`, `POST /members`, `GET/PUT /members/:id`, `POST /members/:id/reset-password` | owner |
 | Plans | `GET /plans`, `POST /plans`, `PUT /plans/:id` | owner |
 | Memberships | `POST /memberships`, `PATCH /memberships/:id/cancel` | owner |
 | Payments | `GET /payments?from&to&method`, `GET /payments/dues`, `POST /payments` · `GET /payments/me` | owner · member |
@@ -136,7 +138,7 @@ Environment variables (control panel, or a `server/.env` file on the host):
 | `CORS_ORIGIN` | the site URL, e.g. `https://your-site.hostingersite.com` |
 | `OWNER_EMAIL` `OWNER_PASSWORD` `OWNER_NAME` `GYM_NAME` | first owner login; created on first start only if there's no owner yet |
 
-On start the app creates any missing tables automatically, so there's no need to run `db:init` on the host.
+On start the app creates any missing tables and adds any new columns automatically (`server/src/setup.js`), so there's no need to run `db:init` on the host.
 If only the static site files are uploaded (plain website hosting), pages load but
 login fails because `/api` isn't running. Use a Node.js app instead.
 

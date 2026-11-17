@@ -4,6 +4,8 @@ import { query, transaction } from '../db.js';
 import { ownerOnly } from '../middleware/auth.js';
 import { HttpError, notFound } from '../utils/http.js';
 import { parse, z, zDate, zEmail, zId, zPassword, zPhone, zText } from '../utils/validate.js';
+import { assertBatchAssignable } from './batches.js';
+import { deletePhoto, savePhoto } from './photos.js';
 import {
   MEMBER_CURRENT_EXPIRY,
   MEMBER_HAS_UPCOMING,
@@ -20,17 +22,22 @@ const memberSchema = z.object({
   full_name: z.string().trim().min(2).max(120),
   phone: zPhone,
   email: zEmail,
-  gender: z.enum(['male', 'female', 'other']).nullable().optional().or(z.literal('').transform(() => null)),
+  gender: z.enum(['male', 'female', 'other'], { message: 'Select gender' }),
+  batch_id: z.preprocess((v) => (v === '' || v == null ? null : v), zId.nullable()),
   date_of_birth: zDate.nullable().optional().or(z.literal('').transform(() => null)),
   joined_on: zDate.optional(),
   notes: zText(500),
-  is_active: z.boolean().optional(),
+  is_active: z.coerce.boolean().optional(), // the edit form may send 0/1 from the database row
 });
 
 export async function getMemberOr404(gymId, id, conn) {
   const [m] = await query(
-    `SELECT id, gym_id, user_id, full_name, phone, email, gender, date_of_birth, joined_on, notes, is_active, created_at
-       FROM members WHERE id = :id AND gym_id = :gymId`,
+    `SELECT m.id, m.gym_id, m.user_id, m.batch_id, b.name AS batch_name,
+            TIME_FORMAT(b.start_time, '%H:%i') AS batch_start, TIME_FORMAT(b.end_time, '%H:%i') AS batch_end,
+            m.full_name, m.phone, m.email, m.gender, m.date_of_birth, m.joined_on, m.notes, m.photo_key,
+            m.is_active, m.created_at
+       FROM members m LEFT JOIN batches b ON b.id = m.batch_id
+      WHERE m.id = :id AND m.gym_id = :gymId`,
     { id, gymId },
     conn,
   );
@@ -39,23 +46,28 @@ export async function getMemberOr404(gymId, id, conn) {
 }
 
 membersRouter.get('/', async (req, res) => {
-  const { search, status } = parse(
+  const { search, status, gender, batch } = parse(
     z.object({
       search: z.string().trim().max(100).optional(),
       status: z.enum(['active', 'pending', 'expired', 'no_plan', 'inactive', 'invited']).optional(),
+      gender: z.enum(['male', 'female', 'other', 'unset']).optional(),
+      batch: z.union([zId, z.literal('none')]).optional(),
     }),
     req.query,
   );
   const rows = await query(
-    `SELECT m.id, m.full_name, m.phone, m.email, m.joined_on, m.is_active, m.user_id IS NOT NULL AS registered,
+    `SELECT m.id, m.full_name, m.phone, m.email, m.gender, m.photo_key, m.batch_id, b.name AS batch_name,
+            m.joined_on, m.is_active, m.user_id IS NOT NULL AS registered,
             ${MEMBER_CURRENT_EXPIRY('m')} AS current_expiry,
             ${MEMBER_HAS_UPCOMING('m')} AS has_upcoming,
             ${MEMBER_LAST_VISIT('m')} AS last_visit
-       FROM members m
+       FROM members m LEFT JOIN batches b ON b.id = m.batch_id
       WHERE m.gym_id = :gymId
         ${search ? 'AND (m.full_name LIKE :like OR m.phone LIKE :like OR m.email LIKE :like)' : ''}
+        ${gender === 'unset' ? 'AND m.gender IS NULL' : gender ? 'AND m.gender = :gender' : ''}
+        ${batch === 'none' ? 'AND m.batch_id IS NULL' : batch ? 'AND m.batch_id = :batch' : ''}
       ORDER BY m.full_name`,
-    { gymId: req.user.gymId, today: req.today, like: `%${search ?? ''}%` },
+    { gymId: req.user.gymId, today: req.today, like: `%${search ?? ''}%`, gender: gender ?? null, batch: batch ?? null },
   );
   let members = rows.map((r) => ({
     ...r,
@@ -75,12 +87,14 @@ membersRouter.post('/', async (req, res) => {
     { email: m.email },
   );
   if (taken.n) throw new HttpError(409, 'This email is already in use', { email: ['Email already in use'] });
+  if (m.batch_id) await assertBatchAssignable(req.user.gymId, m.batch_id, m.gender);
 
   const result = await query(
-    `INSERT INTO members (gym_id, full_name, phone, email, gender, date_of_birth, joined_on, notes)
-     VALUES (:gymId, :full_name, :phone, :email, :gender, :date_of_birth, :joined_on, :notes)`,
+    `INSERT INTO members (gym_id, batch_id, full_name, phone, email, gender, date_of_birth, joined_on, notes)
+     VALUES (:gymId, :batch_id, :full_name, :phone, :email, :gender, :date_of_birth, :joined_on, :notes)`,
     {
       gymId: req.user.gymId,
+      batch_id: m.batch_id ?? null,
       full_name: m.full_name,
       phone: m.phone,
       email: m.email,
@@ -168,12 +182,17 @@ membersRouter.put('/:id', async (req, res) => {
       if (taken.n) throw new HttpError(409, 'This email is already in use', { email: ['Email already in use'] });
     }
     const isActive = m.is_active ?? Boolean(current.is_active);
+    // Re-check the batch only when it or the gender changes, so a later capacity cut doesn't block other edits.
+    if (m.batch_id && (m.batch_id !== current.batch_id || m.gender !== current.gender)) {
+      await assertBatchAssignable(req.user.gymId, m.batch_id, m.gender, id, conn);
+    }
     await query(
-      `UPDATE members SET full_name = :full_name, phone = :phone, email = :email, gender = :gender,
+      `UPDATE members SET batch_id = :batch_id, full_name = :full_name, phone = :phone, email = :email, gender = :gender,
               date_of_birth = :date_of_birth, joined_on = :joined_on, notes = :notes, is_active = :is_active
         WHERE id = :id`,
       {
         id,
+        batch_id: m.batch_id ?? null,
         full_name: m.full_name,
         phone: m.phone,
         email: m.email,
@@ -206,6 +225,29 @@ membersRouter.post('/:id/reset-password', async (req, res) => {
   await query('UPDATE users SET password_hash = :hash WHERE id = :id', {
     hash: await bcrypt.hash(newPassword, 10),
     id: member.user_id,
+  });
+  res.status(204).end();
+});
+
+/** Owner sets or replaces a member's photo. Body: { image: 'data:image/jpeg;base64,...' } */
+membersRouter.put('/:id/photo', async (req, res) => {
+  const id = parse(zId, req.params.id);
+  const key = await transaction(async (conn) => {
+    const member = await getMemberOr404(req.user.gymId, id, conn);
+    const newKey = await savePhoto(req.user.gymId, req.body, conn);
+    await query('UPDATE members SET photo_key = :key WHERE id = :id', { key: newKey, id }, conn);
+    await deletePhoto(member.photo_key, conn);
+    return newKey;
+  });
+  res.json({ photo_key: key });
+});
+
+membersRouter.delete('/:id/photo', async (req, res) => {
+  const id = parse(zId, req.params.id);
+  await transaction(async (conn) => {
+    const member = await getMemberOr404(req.user.gymId, id, conn);
+    await query('UPDATE members SET photo_key = NULL WHERE id = :id', { id }, conn);
+    await deletePhoto(member.photo_key, conn);
   });
   res.status(204).end();
 });

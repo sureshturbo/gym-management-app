@@ -13,6 +13,8 @@ import {
   memberStatus,
 } from '../sql.js';
 import { listDues } from './payments.js';
+import { listBatches } from './batches.js';
+import { HOURS_COLS, withHours } from './gym.js';
 
 export const dashboardRouter = Router();
 
@@ -33,7 +35,7 @@ dashboardRouter.get('/owner', ownerOnly, async (req, res) => {
     lastMonthSameDay: addMonths(today, -1),
   };
 
-  const [[counts], expiring, absent, followupsDue, dues] = await Promise.all([
+  const [[counts], genderRows, expiring, absent, followupsDue, dues, batches] = await Promise.all([
     query(
       `SELECT
          (SELECT COUNT(*) FROM members m WHERE m.gym_id = :gymId AND m.is_active = 1) AS total_members,
@@ -52,9 +54,18 @@ dashboardRouter.get('/owner', ownerOnly, async (req, res) => {
          (SELECT COUNT(*) FROM followups f WHERE f.gym_id = :gymId AND f.status = 'pending') AS pending_followups`,
       p,
     ),
+    // Men / women split: all (enabled) members, members with a plan today, and today's check-ins
+    query(
+      `SELECT COALESCE(m.gender, 'unset') AS gender, COUNT(*) AS total,
+              SUM(${MEMBER_IS_ACTIVE('m')}) AS active,
+              SUM(EXISTS (SELECT 1 FROM attendance a WHERE a.member_id = m.id AND a.check_in_date = :today)) AS today
+         FROM members m WHERE m.gym_id = :gymId AND m.is_active = 1
+        GROUP BY COALESCE(m.gender, 'unset')`,
+      p,
+    ),
     // Expiring soon and not yet renewed
     query(
-      `SELECT ms.member_id, m.full_name, m.phone, ms.plan_name, ms.expiry_date
+      `SELECT ms.member_id, m.full_name, m.phone, m.photo_key, ms.plan_name, ms.expiry_date
          FROM memberships ms JOIN members m ON m.id = ms.member_id
         WHERE ms.gym_id = :gymId AND ms.is_cancelled = 0 AND m.is_active = 1
           AND ms.expiry_date BETWEEN :today AND :soon
@@ -66,7 +77,7 @@ dashboardRouter.get('/owner', ownerOnly, async (req, res) => {
     // Active members who haven't visited recently
     query(
       `SELECT * FROM (
-         SELECT m.id AS member_id, m.full_name, m.phone, ${MEMBER_LAST_VISIT('m')} AS last_visit
+         SELECT m.id AS member_id, m.full_name, m.phone, m.photo_key, ${MEMBER_LAST_VISIT('m')} AS last_visit
            FROM members m
           WHERE m.gym_id = :gymId AND m.is_active = 1 AND ${MEMBER_IS_ACTIVE('m')}
        ) t
@@ -75,16 +86,25 @@ dashboardRouter.get('/owner', ownerOnly, async (req, res) => {
       p,
     ),
     query(
-      `SELECT f.id, f.member_id, m.full_name, m.phone, f.reason, f.remarks, f.followup_date
+      `SELECT f.id, f.member_id, m.full_name, m.phone, m.photo_key, f.reason, f.remarks, f.followup_date
          FROM followups f JOIN members m ON m.id = f.member_id
         WHERE f.gym_id = :gymId AND f.status = 'pending' AND f.followup_date <= :today
         ORDER BY f.followup_date LIMIT 50`,
       p,
     ),
     listDues(req.user.gymId, today),
+    listBatches(req.user.gymId, today, { includeInactive: false }),
   ]);
 
+  const gender = {};
+  for (const g of ['male', 'female', 'other', 'unset']) {
+    const r = genderRows.find((x) => x.gender === g);
+    gender[g] = { total: Number(r?.total ?? 0), active: Number(r?.active ?? 0), today: Number(r?.today ?? 0) };
+  }
+
   res.json({
+    gender,
+    batches,
     today,
     stats: {
       ...counts,
@@ -113,8 +133,11 @@ dashboardRouter.get('/owner/charts', ownerOnly, async (req, res) => {
 
   const [att, rev, members, plans, checkins] = await Promise.all([
     query(
-      `SELECT check_in_date AS date, COUNT(*) AS count FROM attendance
-        WHERE gym_id = :gymId AND check_in_date BETWEEN :from14 AND :today GROUP BY check_in_date`,
+      `SELECT a.check_in_date AS date, COUNT(*) AS count,
+              SUM(m.gender = 'male') AS male, SUM(m.gender = 'female') AS female,
+              SUM(m.gender IS NULL OR m.gender = 'other') AS other
+         FROM attendance a JOIN members m ON m.id = a.member_id
+        WHERE a.gym_id = :gymId AND a.check_in_date BETWEEN :from14 AND :today GROUP BY a.check_in_date`,
       p,
     ),
     query(
@@ -143,9 +166,18 @@ dashboardRouter.get('/owner/charts', ownerOnly, async (req, res) => {
   ]);
 
   // Every day / month present, zero-filled
-  const attByDate = new Map(att.map((r) => [r.date, r.count]));
+  const attByDate = new Map(att.map((r) => [r.date, r]));
   const attendance = [];
-  for (let d = p.from14; d <= today; d = addDays(d, 1)) attendance.push({ date: d, count: attByDate.get(d) ?? 0 });
+  for (let d = p.from14; d <= today; d = addDays(d, 1)) {
+    const r = attByDate.get(d);
+    attendance.push({
+      date: d,
+      count: Number(r?.count ?? 0),
+      male: Number(r?.male ?? 0),
+      female: Number(r?.female ?? 0),
+      other: Number(r?.other ?? 0),
+    });
+  }
 
   const revByMonth = new Map(rev.map((r) => [r.month, r]));
   const revenue = [];
@@ -181,8 +213,8 @@ dashboardRouter.get('/member', memberOnly, async (req, res) => {
   const p = { memberId: req.user.memberId, gymId: req.user.gymId, today, monthStart: monthStart(today) };
 
   p.from84 = addDays(today, -83);
-  const [[gym], memberships, [visits], dues, recent] = await Promise.all([
-    query('SELECT name, address, phone, email FROM gyms WHERE id = :gymId', p),
+  const [[gym], memberships, [visits], dues, recent, [batch]] = await Promise.all([
+    query(`SELECT name, address, phone, email, ${HOURS_COLS} FROM gyms WHERE id = :gymId`, p),
     query(
       `SELECT ms.id, ms.plan_name, ms.start_date, ms.expiry_date, ms.amount,
               ${MS_PAID('ms')} AS paid, ${MS_STATUS('ms')} AS status
@@ -198,6 +230,11 @@ dashboardRouter.get('/member', memberOnly, async (req, res) => {
     ),
     listDues(req.user.gymId, today, req.user.memberId),
     query('SELECT check_in_date AS d FROM attendance WHERE member_id = :memberId AND check_in_date >= :from84', p),
+    query(
+      `SELECT b.name, TIME_FORMAT(b.start_time, '%H:%i') AS start_time, TIME_FORMAT(b.end_time, '%H:%i') AS end_time
+         FROM members m JOIN batches b ON b.id = m.batch_id WHERE m.id = :memberId`,
+      p,
+    ),
   ]);
 
   // Streak: consecutive days ending today (or yesterday, so it isn't "broken" before today's visit)
@@ -240,7 +277,8 @@ dashboardRouter.get('/member', memberOnly, async (req, res) => {
 
   res.json({
     today,
-    gym,
+    gym: withHours(gym),
+    batch: batch ?? null,
     current: current && {
       ...current,
       days_left: daysLeft,

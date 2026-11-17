@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApi } from '../../hooks.js';
 import { addDays, date, time, todayLocal } from '../../format.js';
-import { Card, Empty, ErrorBox, Loading, PageHeader, Stat } from '../../components/ui.jsx';
+import { Avatar, Card, Empty, ErrorBox, Loading, PageHeader, Stat } from '../../components/ui.jsx';
 
 export default function Attendance() {
   const [day, setDay] = useState(todayLocal());
@@ -29,7 +29,12 @@ export default function Attendance() {
         data && (
           <>
             <div className="stats">
-              <Stat label="Present" value={data.present} tone="primary" />
+              <Stat
+                label="Present"
+                value={data.present}
+                tone="primary"
+                foot={<span>Men {data.byGender.male} · Women {data.byGender.female}{data.byGender.other ? ` · Other ${data.byGender.other}` : ''}</span>}
+              />
               <Stat label="Active members" value={data.activeMembers} />
               <Stat
                 label="Turnout"
@@ -41,14 +46,20 @@ export default function Attendance() {
                 <div className="table-wrap">
                   <table className="table">
                     <thead>
-                      <tr><th>#</th><th>Member</th><th>Time</th><th className="hide-sm">Phone</th><th className="right hide-sm">Distance</th></tr>
+                      <tr><th>#</th><th>Member</th><th>Time</th><th className="hide-sm">Batch</th><th className="hide-sm">Phone</th><th className="right hide-sm">Distance</th></tr>
                     </thead>
                     <tbody>
                       {data.records.map((r, i) => (
                         <tr key={r.id}>
                           <td className="muted">{i + 1}</td>
-                          <td><Link to={`/owner/members/${r.member_id}`}>{r.full_name}</Link></td>
+                          <td>
+                            <div className="row gap">
+                              <Avatar name={r.full_name} photo={r.photo_key} size={30} />
+                              <Link to={`/owner/members/${r.member_id}`}>{r.full_name}</Link>
+                            </div>
+                          </td>
                           <td>{time(r.check_in_at)}</td>
+                          <td className="hide-sm">{r.batch_name ?? <span className="muted">—</span>}</td>
                           <td className="hide-sm">{r.phone}</td>
                           <td className="right hide-sm">{r.distance_m != null ? `${r.distance_m} m` : '—'}</td>
                         </tr>

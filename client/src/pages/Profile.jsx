@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
 import { useForm } from '../hooks.js';
-import { Alert, Avatar, Card, Field, PageHeader } from '../components/ui.jsx';
+import { Alert, Card, Field, PageHeader } from '../components/ui.jsx';
+import PhotoPicker from '../components/PhotoPicker.jsx';
 
 export default function Profile() {
   const { user, setUser } = useAuth();
@@ -45,13 +46,17 @@ export default function Profile() {
       <PageHeader title="Profile" />
       <div className="grid-2">
         <Card title="Your details">
-          <div className="row gap mb">
-            <Avatar name={user.name} size={52} />
-            <div>
-              <strong>{user.name}</strong>
-              <div className="muted small">{user.email}</div>
-              <div className="muted small">{user.gymName}</div>
-            </div>
+          <div className="mb">
+            <strong>{user.name}</strong>
+            <div className="muted small">{user.email} · {user.gymName}</div>
+          </div>
+          <div className="mb">
+            <PhotoPicker
+              name={user.name}
+              photo={user.photoKey}
+              onUpload={async (image) => setUser((await api('/auth/me/photo', { method: 'PUT', body: { image } })).user)}
+              onRemove={async () => setUser((await api('/auth/me/photo', { method: 'DELETE' })).user)}
+            />
           </div>
           <form onSubmit={saveProfile} className="stack">
             {profile.error && <Alert tone="danger">{profile.error}</Alert>}

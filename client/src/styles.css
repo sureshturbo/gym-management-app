@@ -543,3 +543,22 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--p
   .qr-box svg { width: 380px; height: 380px; }
   .qr-print p { font-size: 1.3rem; }
 }
+
+/* ---------- photos ---------- */
+.avatar-img { object-fit: cover; background: var(--surface-2); }
+.photo-pick { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.photo-pick .avatar { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--border); }
+.photo-pick input[type='file'] { display: none; }
+.select-sm { width: auto; min-width: 0; padding-top: 7px; padding-bottom: 7px; font-size: 0.86rem; }
+.batch-time { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.01em; margin: 4px 0 8px; }
+.batch-meta { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.batch-fill { display: block; height: 8px; }
+.gender-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.gender-tile { padding: 12px; border-radius: 14px; background: var(--surface-2); min-width: 0; }
+.gender-head { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.85rem; color: var(--text-2); }
+.gender-head i { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.gender-head .muted { margin-left: auto; font-weight: 600; font-size: 0.78rem; }
+.gender-num { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.02em; margin: 2px 0; }
+.gender-sub { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 0.76rem; color: var(--muted); }
+.gender-sub b { color: var(--text); }
+.hbars-wide .hbar-row { grid-template-columns: minmax(90px, 160px) 1fr 52px; }

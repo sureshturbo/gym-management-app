@@ -104,8 +104,10 @@ attendanceRouter.get('/', ownerOnly, async (req, res) => {
   const day = date ?? req.today;
   const [records, [{ active_members }]] = await Promise.all([
     query(
-      `SELECT a.id, a.member_id, m.full_name, m.phone, a.check_in_at, a.distance_m
+      `SELECT a.id, a.member_id, m.full_name, m.phone, m.gender, m.photo_key, b.name AS batch_name,
+              a.check_in_at, a.distance_m
          FROM attendance a JOIN members m ON m.id = a.member_id
+         LEFT JOIN batches b ON b.id = m.batch_id
         WHERE a.gym_id = :gymId AND a.check_in_date = :day
         ORDER BY a.check_in_at`,
       { gymId: req.user.gymId, day },
@@ -116,7 +118,9 @@ attendanceRouter.get('/', ownerOnly, async (req, res) => {
       { gymId: req.user.gymId, today: day },
     ),
   ]);
-  res.json({ date: day, present: records.length, activeMembers: active_members, records });
+  const byGender = { male: 0, female: 0, other: 0 };
+  for (const r of records) if (r.gender) byGender[r.gender]++;
+  res.json({ date: day, present: records.length, activeMembers: active_members, byGender, records });
 });
 
 /** Member: own attendance history. */

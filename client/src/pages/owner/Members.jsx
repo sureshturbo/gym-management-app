@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../api.js';
 import { useApi } from '../../hooks.js';
 import { date } from '../../format.js';
@@ -22,6 +22,10 @@ export default function Members() {
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
   const [status, setStatus] = useState('');
+  const [gender, setGender] = useState('');
+  const [searchParams] = useSearchParams();
+  const [batch, setBatch] = useState(searchParams.get('batch') ?? ''); // batch cards link here with ?batch=<id>
+  const batches = useApi('/batches').data?.batches ?? [];
   const [adding, setAdding] = useState(false);
 
   useEffect(() => {
@@ -29,7 +33,7 @@ export default function Members() {
     return () => clearTimeout(t);
   }, [search]);
 
-  const { data, loading, error, reload } = useApi('/members', { search: debounced, status });
+  const { data, loading, error, reload } = useApi('/members', { search: debounced, status, gender, batch });
 
   const add = async (values) => {
     const { id } = await api('/members', { method: 'POST', body: values });
@@ -59,6 +63,20 @@ export default function Members() {
               aria-label="Search members"
             />
           </div>
+          <select value={gender} onChange={(e) => setGender(e.target.value)} aria-label="Gender" className="select-sm">
+            <option value="">All genders</option>
+            <option value="male">Men</option>
+            <option value="female">Women</option>
+            <option value="other">Other</option>
+            <option value="unset">Gender not set</option>
+          </select>
+          {batches.length > 0 && (
+            <select value={batch} onChange={(e) => setBatch(e.target.value)} aria-label="Batch" className="select-sm">
+              <option value="">All batches</option>
+              {batches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              <option value="none">No batch</option>
+            </select>
+          )}
           <div className="chips">
             {FILTERS.map(([value, label]) => (
               <button
@@ -82,6 +100,7 @@ export default function Members() {
                 <tr>
                   <th>Member</th>
                   <th>Status</th>
+                  <th className="hide-sm">Batch</th>
                   <th className="hide-sm">Valid until</th>
                   <th className="hide-sm">Last visit</th>
                 </tr>
@@ -91,7 +110,7 @@ export default function Members() {
                   <tr key={m.id} className="clickable" onClick={() => navigate(`/owner/members/${m.id}`)}>
                     <td>
                       <div className="row gap">
-                        <Avatar name={m.full_name} size={34} />
+                        <Avatar name={m.full_name} photo={m.photo_key} size={34} />
                         <div>
                           <Link to={`/owner/members/${m.id}`} onClick={(e) => e.stopPropagation()}>
                             {m.full_name}
@@ -103,6 +122,7 @@ export default function Members() {
                     <td>
                       <StatusBadge status={m.status} /> {!m.registered && <Badge tone="info">Invited</Badge>}
                     </td>
+                    <td className="hide-sm">{m.batch_name ?? <span className="muted">—</span>}</td>
                     <td className="hide-sm">{date(m.current_expiry)}</td>
                     <td className="hide-sm">{date(m.last_visit)}</td>
                   </tr>
@@ -111,7 +131,7 @@ export default function Members() {
             </table>
           </div>
         ) : (
-          <Empty>{debounced || status ? 'No members match.' : 'No members yet. Add your first member.'}</Empty>
+          <Empty>{debounced || status || gender || batch ? 'No members match.' : 'No members yet. Add your first member.'}</Empty>
         )}
       </Card>
 

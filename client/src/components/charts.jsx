@@ -407,3 +407,146 @@ export function VisitCalendar({ calendar, today, className = '' }) {
     </ChartCard>
   );
 }
+
+// ---------- gender ----------
+
+/** Fixed series order so a colour always means the same group: men = series 1, women = series 2, other = series 3. */
+const genderSeries = (t) => [
+  { key: 'male', label: 'Men', color: t.s1 },
+  { key: 'female', label: 'Women', color: t.s2 },
+  { key: 'other', label: 'Other / not set', color: t.s3 },
+];
+
+/** Daily check-ins split by gender, stacked bars (legend + table). */
+export function GenderTrend({ data, height = 250, className = '' }) {
+  const t = useChartTheme();
+  // Drop "Other" when it never occurs, so the legend doesn't list an empty series.
+  const series = genderSeries(t).filter((s) => s.key !== 'other' || data.some((d) => d.other > 0));
+  const totals = Object.fromEntries(series.map((s) => [s.key, data.reduce((n, d) => n + d[s.key], 0)]));
+  return (
+    <ChartCard
+      className={className}
+      title="Check-ins: men vs women"
+      sub={`Last ${data.length} days · ${series.map((s) => `${s.label} ${totals[s.key]}`).join(' · ')}`}
+      legend={series.map(({ label, color }) => ({ label, color }))}
+      table={{
+        columns: ['Date', ...series.map((s) => s.label), 'Total'],
+        rows: [...data].reverse().map((d) => [weekday(d.date), ...series.map((s) => d[s.key]), d.count]),
+      }}
+    >
+      <div className="chart-box" style={{ height }}>
+        <ResponsiveContainer>
+          <BarChart data={data} margin={{ top: 8, right: 8, left: -18, bottom: 0 }} barCategoryGap="22%">
+            <CartesianGrid vertical={false} stroke={t.grid} />
+            <XAxis dataKey="date" tickFormatter={shortDate} minTickGap={24} {...axisProps(t)} />
+            <YAxis allowDecimals={false} width={44} {...axisProps(t)} />
+            <Tooltip
+              cursor={{ fill: t.grid, opacity: 0.6 }}
+              content={
+                <Tip
+                  title={(l) => weekday(l)}
+                  rows={(p) => [
+                    ...p.map((x) => ({ name: x.name, color: x.color, value: x.value })),
+                    { name: 'Total', color: 'transparent', value: p.reduce((n, x) => n + x.value, 0) },
+                  ]}
+                />
+              }
+            />
+            {series.map((s, i) => (
+              <Bar
+                key={s.key}
+                dataKey={s.key}
+                name={s.label}
+                stackId="g"
+                fill={s.color}
+                stroke={t.surface}
+                strokeWidth={2}
+                radius={i === series.length - 1 ? [4, 4, 0, 0] : undefined}
+                isAnimationActive={animate()}
+              />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </ChartCard>
+  );
+}
+
+/** Men / women counts: members, members with a plan today, and today's check-ins. */
+export function GenderSplit({ gender, className = '' }) {
+  const t = useChartTheme();
+  const groups = [
+    ...genderSeries(t).slice(0, 2),
+    { key: 'other', label: 'Other', color: t.s3 },
+    { key: 'unset', label: 'Not set', color: t.neutral2 },
+  ]
+    .map((g) => ({ ...g, ...gender[g.key] }))
+    .filter((g) => g.key === 'male' || g.key === 'female' || g.total > 0);
+  const total = groups.reduce((n, g) => n + g.total, 0);
+  const shown = groups.filter((g) => g.total > 0);
+  return (
+    <ChartCard className={className} title="Men & women" sub={`${total} members`}>
+      {total ? (
+        <div className="segbar" role="img" aria-label={shown.map((g) => `${g.label} ${g.total}`).join(', ')}>
+          {shown.map((g) => (
+            <div key={g.key} style={{ flexGrow: g.total, background: g.color }} title={`${g.label}: ${g.total}`} />
+          ))}
+        </div>
+      ) : null}
+      <div className="gender-grid">
+        {groups.map((g) => (
+          <div className="gender-tile" key={g.key}>
+            <div className="gender-head">
+              <i style={{ background: g.color }} />
+              {g.label}
+              <span className="muted">{total ? Math.round((g.total / total) * 100) : 0}%</span>
+            </div>
+            <div className="gender-num">{g.total}</div>
+            <div className="gender-sub">
+              <span><b>{g.active}</b> active plan</span>
+              <span><b>{g.today}</b> in today</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      {gender.unset?.total > 0 && (
+        <p className="muted small" style={{ marginTop: 10 }}>
+          {gender.unset.total} member{gender.unset.total === 1 ? ' has' : 's have'} no gender set. Edit the member to add it.
+        </p>
+      )}
+    </ChartCard>
+  );
+}
+
+/** Today's check-ins per batch against its member count (single colour, ranked by start time). */
+export function BatchesToday({ batches, className = '' }) {
+  return (
+    <ChartCard
+      className={className}
+      title="Batches today"
+      sub="Members checked in today, out of members in the batch"
+      table={{
+        columns: ['Batch', 'Time', 'Checked in', 'Members', 'Max'],
+        rows: batches.map((b) => [b.name, `${b.start_time}–${b.end_time}`, b.today_count, b.member_count, b.capacity ?? '—']),
+      }}
+    >
+      <div className="hbars hbars-wide">
+        {batches.map((b, i) => (
+          <div className="hbar-row" key={b.id}>
+            <span className="lbl" title={b.name}>
+              {b.name}
+              <small className="muted"> {hourLabel(Number(b.start_time.slice(0, 2)))}</small>
+            </span>
+            <span className="hbar-track">
+              <span
+                className="hbar-fill"
+                style={{ width: `${b.member_count ? (b.today_count / b.member_count) * 100 : 0}%`, animationDelay: `${i * 80}ms` }}
+              />
+            </span>
+            <span className="val">{b.today_count}/{b.member_count}</span>
+          </div>
+        ))}
+      </div>
+    </ChartCard>
+  );
+}

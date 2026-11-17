@@ -15,6 +15,7 @@ import Payments from './pages/owner/Payments.jsx';
 import Followups from './pages/owner/Followups.jsx';
 import Reports from './pages/owner/Reports.jsx';
 import GymSettings from './pages/owner/GymSettings.jsx';
+import Batches from './pages/owner/Batches.jsx';
 import MemberHome from './pages/member/Home.jsx';
 import History from './pages/member/History.jsx';
 
@@ -58,6 +59,7 @@ export default function App() {
         <Route path="/owner/plans" element={<Plans />} />
         <Route path="/owner/reports" element={<Reports />} />
         <Route path="/owner/gym" element={<GymSettings />} />
+        <Route path="/owner/batches" element={<Batches />} />
         <Route path="/owner/profile" element={<Profile />} />
       </Route>
 

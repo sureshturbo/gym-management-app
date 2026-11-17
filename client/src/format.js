@@ -64,3 +64,28 @@ export const planDuration = (p) =>
     ? { 1: 'Monthly', 3: 'Quarterly', 6: 'Half-yearly', 12: 'Yearly' }[p.duration_value] ??
       `${p.duration_value} months`
     : `${p.duration_value} days`;
+
+/** '18:30' -> '6:30 pm' */
+export function clock(hhmm) {
+  if (!hhmm) return '';
+  const [h, m] = hhmm.split(':').map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`;
+}
+export const timeRange = (a, b) => (a && b ? `${clock(a)} – ${clock(b)}` : '');
+
+export const GENDERS = { male: 'Male', female: 'Female', other: 'Other' };
+/** Who a batch is open to. */
+export const BATCH_FOR = { any: 'Everyone', male: 'Men only', female: 'Women only' };
+
+export const DAYS = [
+  ['mon', 'Mon'], ['tue', 'Tue'], ['wed', 'Wed'], ['thu', 'Thu'], ['fri', 'Fri'], ['sat', 'Sat'], ['sun', 'Sun'],
+];
+
+/** Gym hours as one line, e.g. "5:30 am – 10:00 pm · Closed Sun". */
+export function hoursText(g) {
+  if (!g?.open_time) return '';
+  const closed = DAYS.filter(([d]) => g.closed_days?.includes(d)).map(([, l]) => l);
+  return `${timeRange(g.open_time, g.close_time)}${closed.length ? ` · Closed ${closed.join(', ')}` : ''}`;
+}
+
+export const photoUrl = (key) => (key ? `/api/photos/${key}` : null);

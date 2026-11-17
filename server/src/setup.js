@@ -20,8 +20,42 @@ export async function ensureSchema() {
   const conn = await mysql.createConnection({ ...config.db, multipleStatements: true });
   try {
     await conn.query(sql);
+    await addMissingColumns(conn);
   } finally {
     await conn.end();
+  }
+}
+
+// Columns added after the first release. CREATE TABLE IF NOT EXISTS skips existing tables,
+// so databases created earlier get these columns here. Order matters (batches exists before the FK).
+const COLUMN_MIGRATIONS = [
+  ['gyms', 'open_time', 'ALTER TABLE gyms ADD COLUMN open_time TIME NULL AFTER timezone'],
+  ['gyms', 'close_time', 'ALTER TABLE gyms ADD COLUMN close_time TIME NULL AFTER open_time'],
+  [
+    'gyms',
+    'closed_days',
+    "ALTER TABLE gyms ADD COLUMN closed_days SET('mon','tue','wed','thu','fri','sat','sun') NOT NULL DEFAULT '' AFTER close_time",
+  ],
+  ['users', 'photo_key', 'ALTER TABLE users ADD COLUMN photo_key CHAR(32) NULL AFTER password_hash'],
+  ['members', 'photo_key', 'ALTER TABLE members ADD COLUMN photo_key CHAR(32) NULL AFTER notes'],
+  [
+    'members',
+    'batch_id',
+    `ALTER TABLE members ADD COLUMN batch_id INT UNSIGNED NULL AFTER user_id,
+       ADD KEY ix_members_batch (batch_id),
+       ADD CONSTRAINT fk_members_batch FOREIGN KEY (batch_id) REFERENCES batches(id) ON DELETE SET NULL`,
+  ],
+];
+
+async function addMissingColumns(conn) {
+  const [cols] = await conn.query(
+    'SELECT TABLE_NAME AS t, COLUMN_NAME AS c FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()',
+  );
+  const have = new Set(cols.map((r) => `${r.t}.${r.c}`));
+  for (const [table, column, sql] of COLUMN_MIGRATIONS) {
+    if (have.has(`${table}.${column}`)) continue;
+    await conn.query(sql);
+    console.log(`Database updated: added ${table}.${column}`);
   }
 }
 

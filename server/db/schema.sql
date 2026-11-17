@@ -15,10 +15,41 @@ CREATE TABLE IF NOT EXISTS gyms (
   longitude     DECIMAL(10,7)     NULL,
   radius_m      SMALLINT UNSIGNED NOT NULL DEFAULT 150,
   timezone      VARCHAR(64)       NOT NULL DEFAULT 'Asia/Kolkata',
+  open_time     TIME              NULL,
+  close_time    TIME              NULL,
+  closed_days   SET('mon','tue','wed','thu','fri','sat','sun') NOT NULL DEFAULT '',
   qr_token      CHAR(32)          NOT NULL,
   created_at    DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at    DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_gyms_qr_token (qr_token)
+) ENGINE=InnoDB;
+
+-- Training batches (time slots). gender 'female' = ladies-only batch, etc.
+CREATE TABLE IF NOT EXISTS batches (
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  gym_id        INT UNSIGNED      NOT NULL,
+  name          VARCHAR(60)       NOT NULL,
+  start_time    TIME              NOT NULL,
+  end_time      TIME              NOT NULL,
+  gender        ENUM('any','male','female') NOT NULL DEFAULT 'any',
+  capacity      SMALLINT UNSIGNED NULL,
+  is_active     TINYINT(1)        NOT NULL DEFAULT 1,
+  created_at    DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY ix_batches_gym (gym_id, start_time),
+  CONSTRAINT fk_batches_gym FOREIGN KEY (gym_id) REFERENCES gyms(id)
+) ENGINE=InnoDB;
+
+-- Profile photos (small JPEGs, resized in the browser). Served at /api/photos/<photo_key>;
+-- the key is random and changes on every upload, so it doubles as a cache-buster.
+CREATE TABLE IF NOT EXISTS photos (
+  photo_key     CHAR(32)          NOT NULL PRIMARY KEY,
+  gym_id        INT UNSIGNED      NOT NULL,
+  mime          VARCHAR(20)       NOT NULL,
+  data          MEDIUMBLOB        NOT NULL,
+  created_at    DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY ix_photos_gym (gym_id),
+  CONSTRAINT fk_photos_gym FOREIGN KEY (gym_id) REFERENCES gyms(id)
 ) ENGINE=InnoDB;
 
 -- Login accounts. One account belongs to exactly one gym.
@@ -30,6 +61,7 @@ CREATE TABLE IF NOT EXISTS users (
   email         VARCHAR(160)      NOT NULL,
   phone         VARCHAR(20)       NULL,
   password_hash VARCHAR(100)      NOT NULL,
+  photo_key     CHAR(32)          NULL,
   is_active     TINYINT(1)        NOT NULL DEFAULT 1,
   created_at    DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at    DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -43,6 +75,7 @@ CREATE TABLE IF NOT EXISTS members (
   id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   gym_id        INT UNSIGNED      NOT NULL,
   user_id       INT UNSIGNED      NULL,
+  batch_id      INT UNSIGNED      NULL,
   full_name     VARCHAR(120)      NOT NULL,
   phone         VARCHAR(20)       NOT NULL,
   email         VARCHAR(160)      NOT NULL,
@@ -50,13 +83,16 @@ CREATE TABLE IF NOT EXISTS members (
   date_of_birth DATE              NULL,
   joined_on     DATE              NOT NULL,
   notes         VARCHAR(500)      NULL,
+  photo_key     CHAR(32)          NULL,
   is_active     TINYINT(1)        NOT NULL DEFAULT 1,
   created_at    DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at    DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_members_email (email),
   UNIQUE KEY uq_members_user (user_id),
   KEY ix_members_gym_name (gym_id, full_name),
+  KEY ix_members_batch (batch_id),
   CONSTRAINT fk_members_gym  FOREIGN KEY (gym_id)  REFERENCES gyms(id),
+  CONSTRAINT fk_members_batch FOREIGN KEY (batch_id) REFERENCES batches(id) ON DELETE SET NULL,
   CONSTRAINT fk_members_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 

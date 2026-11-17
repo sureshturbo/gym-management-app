@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { STATUS } from '../format.js';
+import { photoUrl, STATUS } from '../format.js';
 import { useCountUp } from '../hooks.js';
 import Icon from './Icon.jsx';
 
@@ -176,9 +176,22 @@ function hash(s) {
   return Math.abs(h);
 }
 
-/** Initials avatar (no image uploads in v1). */
-export function Avatar({ name, size = 40 }) {
+/** Profile photo when `photo` (a photo key) is set, otherwise coloured initials. */
+export function Avatar({ name, size = 40, photo }) {
   const n = name ?? '?';
+  if (photo) {
+    return (
+      <img
+        className="avatar avatar-img"
+        src={photoUrl(photo)}
+        alt=""
+        width={size}
+        height={size}
+        loading="lazy"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
   const initials = n
     .split(/\s+/)
     .filter(Boolean)

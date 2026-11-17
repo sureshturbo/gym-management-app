@@ -16,6 +16,8 @@ import { attendanceRouter } from './routes/attendance.js';
 import { followupsRouter } from './routes/followups.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { reportsRouter } from './routes/reports.js';
+import { batchesRouter } from './routes/batches.js';
+import { photosRouter } from './routes/photos.js';
 
 const webDist = fileURLToPath(new URL('../public', import.meta.url));
 
@@ -40,7 +42,7 @@ export function createApp() {
   app.set('trust proxy', 1);
   app.use(helmet());
   app.use(cors({ origin: config.corsOrigins }));
-  app.use(express.json({ limit: '100kb' }));
+  app.use(express.json({ limit: '1mb' })); // photo uploads are ~50-150 KB of base64
 
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
   app.use('/api/auth', authRouter);
@@ -53,6 +55,8 @@ export function createApp() {
   app.use('/api/followups', followupsRouter);
   app.use('/api/dashboard', dashboardRouter);
   app.use('/api/reports', reportsRouter);
+  app.use('/api/batches', batchesRouter);
+  app.use('/api/photos', photosRouter);
 
   serveWebApp(app);
 

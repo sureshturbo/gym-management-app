@@ -11,11 +11,41 @@ export const qrPayload = (gymId, token) => `GYMAPP:${gymId}:${token}`;
 
 gymRouter.get('/', authenticate, async (req, res) => {
   const [gym] = await query(
-    `SELECT id, name, address, phone, email, latitude, longitude, radius_m, timezone
+    `SELECT id, name, address, phone, email, latitude, longitude, radius_m, timezone, ${HOURS_COLS}
        FROM gyms WHERE id = :id`,
     { id: req.user.gymId },
   );
-  res.json({ gym });
+  res.json({ gym: withHours(gym) });
+});
+
+export const HOURS_COLS =
+  "TIME_FORMAT(open_time, '%H:%i') AS open_time, TIME_FORMAT(close_time, '%H:%i') AS close_time, closed_days";
+/** closed_days comes back from MySQL as 'sat,sun'; send it as an array. */
+export const withHours = (g) => g && { ...g, closed_days: g.closed_days ? g.closed_days.split(',') : [] };
+
+const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const zOptTime = z.preprocess(
+  (v) => (v === '' || v == null ? null : v),
+  z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM').nullable(),
+);
+const hoursSchema = z
+  .object({
+    open_time: zOptTime,
+    close_time: zOptTime,
+    closed_days: z.array(z.enum(DAYS)).max(7).default([]),
+  })
+  .refine((h) => (h.open_time == null) === (h.close_time == null), { message: 'Set both times', path: ['close_time'] })
+  .refine((h) => h.open_time == null || h.close_time > h.open_time, { message: 'Must be after opening time', path: ['close_time'] });
+
+/** Opening hours shown to members. */
+gymRouter.put('/hours', ownerOnly, async (req, res) => {
+  const h = parse(hoursSchema, req.body);
+  await query(
+    'UPDATE gyms SET open_time = :open_time, close_time = :close_time, closed_days = :closed_days WHERE id = :id',
+    { ...h, closed_days: DAYS.filter((d) => h.closed_days.includes(d)).join(','), id: req.user.gymId },
+  );
+  const [gym] = await query(`SELECT ${HOURS_COLS} FROM gyms WHERE id = :id`, { id: req.user.gymId });
+  res.json({ hours: withHours(gym) });
 });
 
 const gymSchema = z
@@ -51,10 +81,10 @@ gymRouter.put('/', ownerOnly, async (req, res) => {
     },
   );
   const [gym] = await query(
-    'SELECT id, name, address, phone, email, latitude, longitude, radius_m, timezone FROM gyms WHERE id = :id',
+    `SELECT id, name, address, phone, email, latitude, longitude, radius_m, timezone, ${HOURS_COLS} FROM gyms WHERE id = :id`,
     { id: req.user.gymId },
   );
-  res.json({ gym });
+  res.json({ gym: withHours(gym) });
 });
 
 gymRouter.get('/qr', ownerOnly, async (req, res) => {

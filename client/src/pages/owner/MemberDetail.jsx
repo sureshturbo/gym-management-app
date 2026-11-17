@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../api.js';
 import { useApi, useForm } from '../../hooks.js';
-import { addDays, date, dateTime, money, REASONS, todayLocal } from '../../format.js';
+import { addDays, date, dateTime, GENDERS, money, REASONS, timeRange, todayLocal } from '../../format.js';
+import PhotoPicker from '../../components/PhotoPicker.jsx';
 import { Alert, Avatar, Badge, Card, Empty, ErrorBox, Field, Loading, Modal, StatusBadge } from '../../components/ui.jsx';
 import MemberForm from './MemberForm.jsx';
 
@@ -48,7 +49,7 @@ export default function MemberDetail() {
       <p className="small"><Link to="/owner/members">← Members</Link></p>
       <div className="page-header">
         <div className="row gap">
-          <Avatar name={member.full_name} size={56} />
+          <Avatar name={member.full_name} photo={member.photo_key} size={56} />
           <div>
             <h1>{member.full_name}</h1>
             <div className="row gap wrap">
@@ -70,11 +71,27 @@ export default function MemberDetail() {
 
       <div className="grid-2">
         <Card title="Details">
+          <div className="mb">
+            <PhotoPicker
+              name={member.full_name}
+              photo={member.photo_key}
+              onUpload={async (image) => {
+                await api(`/members/${id}/photo`, { method: 'PUT', body: { image } });
+                reload();
+              }}
+              onRemove={async () => {
+                await api(`/members/${id}/photo`, { method: 'DELETE' });
+                reload();
+              }}
+            />
+          </div>
           <dl className="details">
             <dt>Mobile</dt><dd><a href={`tel:${member.phone}`}>{member.phone}</a></dd>
             <dt>Email</dt><dd>{member.email}</dd>
             <dt>Joined</dt><dd>{date(member.joined_on)}</dd>
-            <dt>Gender</dt><dd>{member.gender ?? '—'}</dd>
+            <dt>Gender</dt><dd>{GENDERS[member.gender] ?? 'Not set'}</dd>
+            <dt>Batch</dt>
+            <dd>{member.batch_name ? `${member.batch_name} · ${timeRange(member.batch_start, member.batch_end)}` : 'No batch'}</dd>
             <dt>Date of birth</dt><dd>{date(member.date_of_birth)}</dd>
             {member.notes && (<><dt>Notes</dt><dd>{member.notes}</dd></>)}
           </dl>

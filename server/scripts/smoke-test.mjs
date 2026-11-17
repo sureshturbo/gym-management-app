@@ -60,10 +60,10 @@ await call('POST', '/plans', { token: owner, body: { name: 'x', duration_unit: '
 const email = `test-${stamp}@demo.gym`;
 const created = await call('POST', '/members', {
   token: owner,
-  body: { full_name: 'Test Member', phone: '9000000000', email },
+  body: { full_name: 'Test Member', phone: '9000000000', email, gender: 'male' },
   expect: 201,
 });
-await call('POST', '/members', { token: owner, body: { full_name: 'Dup', phone: '9000000001', email }, expect: 409 });
+await call('POST', '/members', { token: owner, body: { full_name: 'Dup', phone: '9000000001', email, gender: 'male' }, expect: 409 });
 const reg = await call('POST', '/auth/register', { body: { email, password: 'Password1' }, expect: 201 });
 await call('POST', '/auth/register', { body: { email, password: 'Password1' }, expect: 409 });
 const testTok = reg.token;
@@ -133,7 +133,7 @@ await call('PATCH', `/followups/${fu.id}`, { token: owner, body: { status: 'comp
 // --- deactivate member blocks login
 await call('PUT', `/members/${created.id}`, {
   token: owner,
-  body: { full_name: 'Test Member', phone: '9000000000', email, is_active: false },
+  body: { full_name: 'Test Member', phone: '9000000000', email, gender: 'male', is_active: false },
   expect: 204,
 });
 await call('GET', '/auth/me', { token: testTok, expect: 401 });

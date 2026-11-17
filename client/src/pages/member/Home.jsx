@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth.jsx';
 import { useApi } from '../../hooks.js';
-import { date, money } from '../../format.js';
+import { date, hoursText, money, timeRange } from '../../format.js';
 import Icon from '../../components/Icon.jsx';
 import { Alert, Card, CountUp, ErrorBox, ProgressRing, Skeleton, Stat, StatusBadge } from '../../components/ui.jsx';
 import { VisitCalendar, WeeklyVisits } from '../../components/charts.jsx';
@@ -118,6 +118,18 @@ export default function MemberHome() {
       </div>
 
       <Card title={gym.name} sub={gym.address}>
+        <div className="row gap wrap mb">
+          {data.batch && (
+            <span className="badge badge-info">
+              Your batch: {data.batch.name} · {timeRange(data.batch.start_time, data.batch.end_time)}
+            </span>
+          )}
+          {hoursText(gym) && (
+            <span className="badge">
+              Open {hoursText(gym)}
+            </span>
+          )}
+        </div>
         <div className="row gap wrap">
           {gym.phone && <a className="btn btn-sm" href={`tel:${gym.phone}`}><Icon name="phone" size={15} /> {gym.phone}</a>}
           {gym.email && <a className="btn btn-sm" href={`mailto:${gym.email}`}>{gym.email}</a>}
